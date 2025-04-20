@@ -162,26 +162,73 @@ export class CommitteeClient {
       // 转换为委员会API格式的证明
       const apiProof = this.convertToApiProofFormat(proof);
 
-      // 向所有委员会成员发送验证结果
-      const sendPromises = this.committeeMembers.map((member) =>
+      // 找出leader节点
+      const leader = this.committeeMembers.find((m) => m.is_leader);
+      const followers = this.committeeMembers.filter((m) => !m.is_leader);
+
+      if (!leader) {
+        logger.warn("找不到leader节点，将同时向所有节点发送");
+        // 如果找不到leader，按原来的方式发送
+        const sendPromises = this.committeeMembers.map((member) =>
+          this.sendProofToMember(member, apiProof)
+        );
+        const results = await Promise.allSettled(sendPromises);
+        const successCount = results.filter(
+          (r) => r.status === "fulfilled" && r.value
+        ).length;
+        return successCount > 0;
+      }
+
+      // 首先向leader发送
+      logger.info(`首先向leader节点 ${leader.account_id} 发送验证结果`);
+      const leaderResult = await this.sendProofToMember(leader, apiProof);
+
+      if (!leaderResult) {
+        logger.error(`向leader发送失败，转为向所有节点同时发送`);
+        // 如果向leader发送失败，向所有节点发送
+        const sendPromises = this.committeeMembers.map((member) =>
+          this.sendProofToMember(member, apiProof)
+        );
+        const results = await Promise.allSettled(sendPromises);
+        const successCount = results.filter(
+          (r) => r.status === "fulfilled" && r.value
+        ).length;
+        return successCount > 0;
+      }
+
+      // leader发送成功后，等待一段时间再向其他节点发送
+      const LEADER_PROCESSING_DELAY = 2000; // 2秒延迟
+      logger.info(
+        `Leader已接收消息，等待 ${LEADER_PROCESSING_DELAY}ms 让leader处理...`
+      );
+      await new Promise((resolve) =>
+        setTimeout(resolve, LEADER_PROCESSING_DELAY)
+      );
+
+      // 向其他节点发送
+      logger.info(`开始向 ${followers.length} 个follower节点发送验证结果`);
+      const sendPromises = followers.map((member) =>
         this.sendProofToMember(member, apiProof)
       );
 
-      // 等待所有发送完成
+      // 等待所有follower发送完成
       const results = await Promise.allSettled(sendPromises);
 
-      // 统计成功发送的数量
-      const successCount = results.filter(
+      // 统计成功发送的数量（包括leader）
+      const followerSuccessCount = results.filter(
         (r) => r.status === "fulfilled" && r.value
       ).length;
+      const totalSuccessCount = leaderResult
+        ? followerSuccessCount + 1
+        : followerSuccessCount;
       const totalCount = this.committeeMembers.length;
 
       logger.info(
-        `验证结果已发送给 ${successCount}/${totalCount} 个委员会成员`
+        `验证结果已发送给 ${totalSuccessCount}/${totalCount} 个委员会成员 (包括leader)`
       );
 
       // 只要有一个成功发送，就认为成功
-      return successCount > 0;
+      return totalSuccessCount > 0;
     } catch (error) {
       logger.error(`发送验证结果失败: ${error}`);
       return false;
@@ -431,26 +478,77 @@ export class CommitteeClient {
       // 转换为委员会API格式的证明
       const apiProof = this.convertToApiProofFormat(proof);
 
-      // 向所有委员会成员发送补充验证结果
-      const sendPromises = this.committeeMembers.map((member) =>
+      // 找出leader节点
+      const leader = this.committeeMembers.find((m) => m.is_leader);
+      const followers = this.committeeMembers.filter((m) => !m.is_leader);
+
+      if (!leader) {
+        logger.warn("找不到leader节点，将同时向所有节点发送补充验证结果");
+        // 如果找不到leader，按原来的方式发送
+        const sendPromises = this.committeeMembers.map((member) =>
+          this.sendSupplementaryProofToMember(member, taskId, apiProof)
+        );
+        const results = await Promise.allSettled(sendPromises);
+        const successCount = results.filter(
+          (r) => r.status === "fulfilled" && r.value
+        ).length;
+        return successCount > 0;
+      }
+
+      // 首先向leader发送
+      logger.info(`首先向leader节点 ${leader.account_id} 发送补充验证结果`);
+      const leaderResult = await this.sendSupplementaryProofToMember(
+        leader,
+        taskId,
+        apiProof
+      );
+
+      if (!leaderResult) {
+        logger.error(`向leader发送补充验证结果失败，转为向所有节点同时发送`);
+        // 如果向leader发送失败，向所有节点发送
+        const sendPromises = this.committeeMembers.map((member) =>
+          this.sendSupplementaryProofToMember(member, taskId, apiProof)
+        );
+        const results = await Promise.allSettled(sendPromises);
+        const successCount = results.filter(
+          (r) => r.status === "fulfilled" && r.value
+        ).length;
+        return successCount > 0;
+      }
+
+      // leader发送成功后，等待一段时间再向其他节点发送
+      const LEADER_PROCESSING_DELAY = 2000; // 2秒延迟
+      logger.info(
+        `Leader已接收补充验证结果，等待 ${LEADER_PROCESSING_DELAY}ms 让leader处理...`
+      );
+      await new Promise((resolve) =>
+        setTimeout(resolve, LEADER_PROCESSING_DELAY)
+      );
+
+      // 向其他节点发送
+      logger.info(`开始向 ${followers.length} 个follower节点发送补充验证结果`);
+      const sendPromises = followers.map((member) =>
         this.sendSupplementaryProofToMember(member, taskId, apiProof)
       );
 
-      // 等待所有发送完成
+      // 等待所有follower发送完成
       const results = await Promise.allSettled(sendPromises);
 
-      // 统计成功发送的数量
-      const successCount = results.filter(
+      // 统计成功发送的数量（包括leader）
+      const followerSuccessCount = results.filter(
         (r) => r.status === "fulfilled" && r.value
       ).length;
+      const totalSuccessCount = leaderResult
+        ? followerSuccessCount + 1
+        : followerSuccessCount;
       const totalCount = this.committeeMembers.length;
 
       logger.info(
-        `补充验证结果已发送给 ${successCount}/${totalCount} 个委员会成员`
+        `补充验证结果已发送给 ${totalSuccessCount}/${totalCount} 个委员会成员 (包括leader)`
       );
 
       // 只要有一个成功发送，就认为成功
-      return successCount > 0;
+      return totalSuccessCount > 0;
     } catch (error) {
       logger.error(`发送补充验证结果失败: ${error}`);
       return false;
