@@ -74,7 +74,7 @@ export class NearConnection {
           "submit_verifier_proof",
           "request_supplemental_verifier",
         ],
-        // useLocalViewExecution: false,
+        useLocalViewExecution: false,
       });
 
       logger.info(`已连接到NEAR网络，合约ID: ${this.contractId}`);

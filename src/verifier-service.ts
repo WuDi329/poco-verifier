@@ -119,6 +119,7 @@ export class VerifierService {
    * 轮询分配的任务
    */
   private async pollTasks(): Promise<void> {
+    console.log("11111111111111111111111111111111111111");
     if (this.isProcessingTask) {
       logger.debug("当前正在处理任务，跳过轮询");
       return;
@@ -129,6 +130,7 @@ export class VerifierService {
 
       // 获取分配给验证者的未验证任务
       const tasks = await this.nearConnection.queryAssignedTasks(true);
+      console.log(tasks);
       logger.info(`查询到 ${tasks.length} 个待验证任务`);
 
       // 将新任务添加到队列中（避免重复）
@@ -333,6 +335,9 @@ export class VerifierService {
       }
 
       logger.info("验证结果已成功提交到区块链");
+
+      console.log("验证结果:");
+      console.log(proof);
 
       // 10. 发送验证结果给委员会
       logger.info("发送验证结果给委员会...");

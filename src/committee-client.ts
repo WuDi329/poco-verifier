@@ -160,7 +160,7 @@ export class CommitteeClient {
       }
 
       // 转换为委员会API格式的证明
-      const apiProof = this.convertToApiProofFormat(proof);
+      // const apiProof = this.convertToApiProofFormat(proof);
 
       // 找出leader节点
       const leader = this.committeeMembers.find((m) => m.is_leader);
@@ -170,7 +170,7 @@ export class CommitteeClient {
         logger.warn("找不到leader节点，将同时向所有节点发送");
         // 如果找不到leader，按原来的方式发送
         const sendPromises = this.committeeMembers.map((member) =>
-          this.sendProofToMember(member, apiProof)
+          this.sendProofToMember(member, proof)
         );
         const results = await Promise.allSettled(sendPromises);
         const successCount = results.filter(
@@ -181,13 +181,13 @@ export class CommitteeClient {
 
       // 首先向leader发送
       logger.info(`首先向leader节点 ${leader.account_id} 发送验证结果`);
-      const leaderResult = await this.sendProofToMember(leader, apiProof);
+      const leaderResult = await this.sendProofToMember(leader, proof);
 
       if (!leaderResult) {
         logger.error(`向leader发送失败，转为向所有节点同时发送`);
         // 如果向leader发送失败，向所有节点发送
         const sendPromises = this.committeeMembers.map((member) =>
-          this.sendProofToMember(member, apiProof)
+          this.sendProofToMember(member, proof)
         );
         const results = await Promise.allSettled(sendPromises);
         const successCount = results.filter(
@@ -208,7 +208,7 @@ export class CommitteeClient {
       // 向其他节点发送
       logger.info(`开始向 ${followers.length} 个follower节点发送验证结果`);
       const sendPromises = followers.map((member) =>
-        this.sendProofToMember(member, apiProof)
+        this.sendProofToMember(member, proof)
       );
 
       // 等待所有follower发送完成
@@ -476,7 +476,7 @@ export class CommitteeClient {
       }
 
       // 转换为委员会API格式的证明
-      const apiProof = this.convertToApiProofFormat(proof);
+      // const apiProof = this.convertToApiProofFormat(proof);
 
       // 找出leader节点
       const leader = this.committeeMembers.find((m) => m.is_leader);
@@ -486,7 +486,7 @@ export class CommitteeClient {
         logger.warn("找不到leader节点，将同时向所有节点发送补充验证结果");
         // 如果找不到leader，按原来的方式发送
         const sendPromises = this.committeeMembers.map((member) =>
-          this.sendSupplementaryProofToMember(member, taskId, apiProof)
+          this.sendSupplementaryProofToMember(member, taskId, proof)
         );
         const results = await Promise.allSettled(sendPromises);
         const successCount = results.filter(
@@ -500,14 +500,14 @@ export class CommitteeClient {
       const leaderResult = await this.sendSupplementaryProofToMember(
         leader,
         taskId,
-        apiProof
+        proof
       );
 
       if (!leaderResult) {
         logger.error(`向leader发送补充验证结果失败，转为向所有节点同时发送`);
         // 如果向leader发送失败，向所有节点发送
         const sendPromises = this.committeeMembers.map((member) =>
-          this.sendSupplementaryProofToMember(member, taskId, apiProof)
+          this.sendSupplementaryProofToMember(member, taskId, proof)
         );
         const results = await Promise.allSettled(sendPromises);
         const successCount = results.filter(
@@ -528,7 +528,7 @@ export class CommitteeClient {
       // 向其他节点发送
       logger.info(`开始向 ${followers.length} 个follower节点发送补充验证结果`);
       const sendPromises = followers.map((member) =>
-        this.sendSupplementaryProofToMember(member, taskId, apiProof)
+        this.sendSupplementaryProofToMember(member, taskId, proof)
       );
 
       // 等待所有follower发送完成
@@ -559,81 +559,81 @@ export class CommitteeClient {
    * 批量发送验证结果
    * 当有多个任务需要同时验证时使用
    */
-  async sendProofsBatch(proofs: VerifierQosProof[]): Promise<boolean> {
-    try {
-      // 更新委员会成员列表
-      await this.updateCommitteeMembers();
+  // async sendProofsBatch(proofs: VerifierQosProof[]): Promise<boolean> {
+  //   try {
+  //     // 更新委员会成员列表
+  //     await this.updateCommitteeMembers();
 
-      if (this.committeeMembers.length === 0) {
-        logger.error("委员会成员列表为空，无法发送批量验证结果");
-        return false;
-      }
+  //     if (this.committeeMembers.length === 0) {
+  //       logger.error("委员会成员列表为空，无法发送批量验证结果");
+  //       return false;
+  //     }
 
-      // 转换为委员会API格式的证明
-      const apiProofs = proofs.map((proof) =>
-        this.convertToApiProofFormat(proof)
-      );
+  //     // 转换为委员会API格式的证明
+  //     const apiProofs = proofs.map((proof) =>
+  //       this.convertToApiProofFormat(proof)
+  //     );
 
-      // 向所有委员会成员发送批量验证结果
-      const sendPromises = this.committeeMembers.map((member) =>
-        this.sendProofsBatchToMember(member, apiProofs)
-      );
+  //     // 向所有委员会成员发送批量验证结果
+  //     const sendPromises = this.committeeMembers.map((member) =>
+  //       this.sendProofsBatchToMember(member, apiProofs)
+  //     );
 
-      // 等待所有发送完成
-      const results = await Promise.allSettled(sendPromises);
+  //     // 等待所有发送完成
+  //     const results = await Promise.allSettled(sendPromises);
 
-      // 统计成功发送的数量
-      const successCount = results.filter(
-        (r) => r.status === "fulfilled" && r.value
-      ).length;
-      const totalCount = this.committeeMembers.length;
+  //     // 统计成功发送的数量
+  //     const successCount = results.filter(
+  //       (r) => r.status === "fulfilled" && r.value
+  //     ).length;
+  //     const totalCount = this.committeeMembers.length;
 
-      logger.info(
-        `批量验证结果已发送给 ${successCount}/${totalCount} 个委员会成员`
-      );
+  //     logger.info(
+  //       `批量验证结果已发送给 ${successCount}/${totalCount} 个委员会成员`
+  //     );
 
-      // 只要有一个成功发送，就认为成功
-      return successCount > 0;
-    } catch (error) {
-      logger.error(`发送批量验证结果失败: ${error}`);
-      return false;
-    }
-  }
+  //     // 只要有一个成功发送，就认为成功
+  //     return successCount > 0;
+  //   } catch (error) {
+  //     logger.error(`发送批量验证结果失败: ${error}`);
+  //     return false;
+  //   }
+  // }
 
-  /**
-   * 向特定委员会成员发送批量验证结果
-   */
-  private async sendProofsBatchToMember(
-    member: CommitteeMember,
-    proofs: any[]
-  ): Promise<boolean> {
-    try {
-      const url = `http://${member.ip_address}:${member.port}/proofs/batch`;
+  // /**
+  //  * 向特定委员会成员发送批量验证结果
+  //  */
+  // private async sendProofsBatchToMember(
+  //   member: CommitteeMember,
+  //   proofs: any[]
+  // ): Promise<boolean> {
+  //   try {
+  //     const url = `http://${member.ip_address}:${member.port}/proofs/batch`;
 
-      logger.debug(
-        `正在向委员会成员发送批量验证结果: ${member.account_id} (${url})`
-      );
+  //     logger.debug(
+  //       `正在向委员会成员发送批量验证结果: ${member.account_id} (${url})`
+  //     );
 
-      const response = await this.httpClient.post(url, proofs, {
-        timeout: 20000, // 批量请求20秒超时
-      });
+  //     const response = await this.httpClient.post(url, proofs, {
+  //       timeout: 20000, // 批量请求20秒超时
+  //     });
 
-      if (response.status === 202) {
-        logger.info(`批量验证结果已成功发送给委员会成员: ${member.account_id}`);
-        return true;
-      } else {
-        logger.warn(
-          `向委员会成员发送批量验证结果失败: ${member.account_id}, 状态码: ${response.status}`
-        );
-        return false;
-      }
-    } catch (error) {
-      logger.warn(
-        `向委员会成员发送批量验证结果时出错: ${member.account_id}, 错误: ${error}`
-      );
-      return false;
-    }
-  }
+  //     if (response.status === 202) {
+  //       logger.info(`批量验证结果已成功发送给委员会成员: ${member.account_id}`);
+  //       return true;
+  //     } else {
+  //       logger.warn(
+  //         `向委员会成员发送批量验证结果失败: ${member.account_id}, 状态码: ${response.status}`
+  //       );
+  //       return false;
+  //     }
+  //   } catch (error) {
+  //     logger.warn(
+  //       `向委员会成员发送批量验证结果时出错: ${member.account_id}, 错误: ${error}`
+  //     );
+  //     return false;
+  //   }
+  // }
 }
 
 export default CommitteeClient;
