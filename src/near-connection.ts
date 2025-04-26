@@ -5,6 +5,7 @@ import {
   VerifierConfig,
   VerifierQosProof,
   TaskVerificationStatus,
+  TaskDataWithRole
 } from "./types";
 import * as fs from "fs";
 import * as path from "path";
@@ -158,9 +159,9 @@ export class NearConnection {
    */
   async queryAssignedTasks(
     onlyUnverified: boolean = true
-  ): Promise<TaskData[]> {
+  ): Promise<TaskDataWithRole[]> {
     try {
-      const tasks: TaskData[] = await this.contract.query_assigned_tasks({
+      const tasks: TaskDataWithRole[] = await this.contract.query_assigned_tasks({
         verifier_id: this.accountId,
         only_unverified: onlyUnverified,
       });

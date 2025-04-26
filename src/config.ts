@@ -9,7 +9,7 @@ const config: VerifierConfig = {
     helperUrl: "https://helper.testnet.near.org",
     explorerUrl: "https://explorer.testnet.near.org",
   },
-  contractId: "pococontract12.testnet", // 转码服务合约ID
+  contractId: "pococontract13.testnet", // 转码服务合约ID
   verifierAccountId: "verifier1.testnet", // 验证者账户ID
   credentialsPath: "~/.near-credentials", // NEAR凭证路径
   ipfsConfig: {

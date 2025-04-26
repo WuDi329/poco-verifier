@@ -64,6 +64,7 @@ export interface VerifierQosProof {
   audio_score?: number;
   sync_score?: number;
   signature: string;
+  isSupplementary?:boolean;
 }
 
 // 任务验证状态
@@ -121,4 +122,10 @@ export interface VerifierConfig {
   pollingInterval: number;
   ffmpegPath: string;
   vmafModelPath: string;
+}
+
+// 在适当的类型定义文件中添加
+export interface TaskDataWithRole {
+  task: TaskData;
+  is_supplemental_verifier: boolean;
 }

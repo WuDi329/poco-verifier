@@ -10,6 +10,7 @@ import {
   GopScore,
   VerifierQosProof,
   VideoSpecification,
+  TaskDataWithRole
 } from "./types";
 import { logger } from "./utils";
 import { generatePlaceholderSignature } from "./utils";
@@ -28,7 +29,7 @@ export class VerifierService {
 
   // 任务处理状态标志
   private isProcessingTask: boolean = false;
-  private taskQueue: TaskData[] = [];
+  private taskQueue: TaskDataWithRole[] = [];
   private pollingTimer: NodeJS.Timeout | null = null;
   private running: boolean = false;
 
@@ -119,7 +120,7 @@ export class VerifierService {
    * 轮询分配的任务
    */
   private async pollTasks(): Promise<void> {
-    console.log("11111111111111111111111111111111111111");
+    // console.log("11111111111111111111111111111111111111");
     if (this.isProcessingTask) {
       logger.debug("当前正在处理任务，跳过轮询");
       return;
@@ -129,15 +130,15 @@ export class VerifierService {
       logger.debug("轮询分配的任务");
 
       // 获取分配给验证者的未验证任务
-      const tasks = await this.nearConnection.queryAssignedTasks(true);
-      console.log(tasks);
-      logger.info(`查询到 ${tasks.length} 个待验证任务`);
+      const tasksWithRole = await this.nearConnection.queryAssignedTasks(true);
+      console.log(tasksWithRole);
+      logger.info(`查询到 ${tasksWithRole.length} 个待验证任务`);
 
       // 将新任务添加到队列中（避免重复）
       let newTaskCount = 0;
-      for (const task of tasks) {
-        if (!this.taskQueue.some((t) => t.task_id === task.task_id)) {
-          this.taskQueue.push(task);
+      for (const taskWithRole of tasksWithRole) {
+        if (!this.taskQueue.some((t) => t.task.task_id === taskWithRole.task.task_id)) {
+          this.taskQueue.push(taskWithRole);
           newTaskCount++;
         }
       }
@@ -165,15 +166,40 @@ export class VerifierService {
     }
 
     this.isProcessingTask = true;
-    const task = this.taskQueue.shift();
+    const taskWithRole = this.taskQueue.shift() as TaskDataWithRole;
+    const task = taskWithRole.task;
+    const isSupplementary = taskWithRole.is_supplemental_verifier;
 
-    console.log("lalallala");
-    console.log(task);
+    // console.log("lalallala");
+    // console.log(task);
+
 
     try {
       logger.info(`开始处理任务: ${task!.task_id}`);
-      const result = await this.verifyTask(task!);
-      logger.info(`任务处理${result ? "成功" : "失败"}: ${task!.task_id}`);
+      
+          // 验证任务并获取证明
+    const proof = await this.verifyTask(task);
+    
+    if (proof) {
+      // 如果是补充验证，将结果标记为补充验证
+      if (isSupplementary) {
+        proof.isSupplementary = true;
+        
+        // 使用补充验证流程发送结果
+        logger.info(`使用补充验证流程发送结果: ${task.task_id}`);
+        const result = await this.committeeClient.sendSupplementaryProof(task.task_id, proof);
+        logger.info(`补充验证结果发送${result ? "成功" : "失败"}: ${task.task_id}`);
+      } else {
+        // 使用常规流程发送结果
+        logger.info(`使用常规流程发送结果: ${task.task_id}`);
+        const result = await this.committeeClient.sendProofToCommittee(proof);
+        logger.info(`验证结果发送${result ? "成功" : "失败"}: ${task.task_id}`);
+      }
+      
+      logger.info(`任务处理成功: ${task.task_id}`);
+    } else {
+      logger.info(`任务处理失败: ${task.task_id}`);
+    }
     } catch (error) {
       logger.error(`处理任务 ${task!.task_id} 时出错: ${error}`);
     } finally {
@@ -192,7 +218,7 @@ export class VerifierService {
    * @param task 要验证的任务
    * @returns 是否验证成功
    */
-  async verifyTask(task: TaskData): Promise<boolean> {
+  async verifyTask(task: TaskData): Promise<VerifierQosProof | null> {
     logger.info(`开始验证任务: ${task.task_id}`);
 
     try {
@@ -362,10 +388,10 @@ export class VerifierService {
       this.gopAnalyzer.cleanupAllGops();
 
       logger.info(`任务验证成功完成: ${task.task_id}`);
-      return true;
+      return proof;
     } catch (error) {
       logger.error(`验证任务 ${task.task_id} 失败: ${error}`);
-      return false;
+      return null;
     }
   }
 
