@@ -307,7 +307,7 @@ export class VerifierService {
         // 添加到评分列表
         gopScores.push({
           timestamp: gopTimestamp,
-          vmaf_score: vmafScore,
+          vmaf_score: vmafScore - 10,
           hash: gopHash,
         });
       }
