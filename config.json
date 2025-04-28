@@ -1,6 +1,6 @@
 {
     "verifierAccountId": "verifier1.testnet",
-    "contractId": "pococontract12.testnet",
+    "contractId": "pococontract13.testnet",
     "credentialsPath": "~/.near-credentials",
     "nearConfig": {
       "networkId": "testnet",

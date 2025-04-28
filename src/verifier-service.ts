@@ -177,34 +177,19 @@ export class VerifierService {
     try {
       logger.info(`开始处理任务: ${task!.task_id}`);
       
-          // 验证任务并获取证明
-    const proof = await this.verifyTask(task);
-    
-    if (proof) {
-      // 如果是补充验证，将结果标记为补充验证
-      if (isSupplementary) {
-        proof.isSupplementary = true;
-        
-        // 使用补充验证流程发送结果
-        logger.info(`使用补充验证流程发送结果: ${task.task_id}`);
-        const result = await this.committeeClient.sendSupplementaryProof(task.task_id, proof);
-        logger.info(`补充验证结果发送${result ? "成功" : "失败"}: ${task.task_id}`);
-      } else {
-        // 使用常规流程发送结果
-        logger.info(`使用常规流程发送结果: ${task.task_id}`);
-        const result = await this.committeeClient.sendProofToCommittee(proof);
-        logger.info(`验证结果发送${result ? "成功" : "失败"}: ${task.task_id}`);
-      }
+      // 验证任务并直接处理结果发送，返回布尔值表示成功或失败
+      const success = await this.verifyTask(task, isSupplementary);
       
-      logger.info(`任务处理成功: ${task.task_id}`);
-    } else {
-      logger.info(`任务处理失败: ${task.task_id}`);
-    }
+      if (success) {
+        logger.info(`任务处理成功: ${task.task_id}`);
+      } else {
+        logger.error(`任务处理失败: ${task.task_id}`);
+      }
     } catch (error) {
       logger.error(`处理任务 ${task!.task_id} 时出错: ${error}`);
     } finally {
       this.isProcessingTask = false;
-
+      
       // 处理完成后，检查是否还有下一个任务
       if (this.taskQueue.length > 0) {
         // 使用setTimeout确保在当前执行栈完成后再处理下一个任务
@@ -218,8 +203,8 @@ export class VerifierService {
    * @param task 要验证的任务
    * @returns 是否验证成功
    */
-  async verifyTask(task: TaskData): Promise<VerifierQosProof | null> {
-    logger.info(`开始验证任务: ${task.task_id}`);
+  async verifyTask(task: TaskData, isSupplementary: boolean = false): Promise<boolean> {
+    logger.info(`开始${isSupplementary ? '补充' : ''}验证任务: ${task.task_id}`);
 
     try {
       // 1. 确认任务中包含必要的信息
@@ -348,6 +333,7 @@ export class VerifierService {
         audio_score: this.mediaEvaluator.getFixedAudioScore(),
         sync_score: this.mediaEvaluator.getFixedSyncScore(),
         signature: generatePlaceholderSignature(),
+        isSupplementary: isSupplementary
       };
 
       logger.info("已生成验证者质量证明");
@@ -365,17 +351,18 @@ export class VerifierService {
       console.log("验证结果:");
       console.log(proof);
 
-      // 10. 发送验证结果给委员会
-      logger.info("发送验证结果给委员会...");
-      const sendResult = await this.committeeClient.sendProofToCommittee(proof);
-
-      if (!sendResult) {
-        logger.warn(
-          `发送验证结果给委员会失败，但已成功提交到链上: ${task.task_id}`
-        );
-      } else {
-        logger.info("验证结果已成功发送给委员会");
-      }
+     // 10. 根据验证类型发送结果给委员会
+     if (isSupplementary) {
+      // 使用补充验证流程发送结果
+      logger.info(`使用补充验证流程发送结果: ${task.task_id}`);
+      const result = await this.committeeClient.sendSupplementaryProof(task.task_id, proof);
+      logger.info(`补充验证结果发送${result ? "成功" : "失败"}: ${task.task_id}`);
+    } else {
+      // 使用常规流程发送结果
+      logger.info(`使用常规流程发送结果: ${task.task_id}`);
+      const result = await this.committeeClient.sendProofToCommittee(proof);
+      logger.info(`验证结果发送${result ? "成功" : "失败"}: ${task.task_id}`);
+    }
 
       // 11. 清理资源
       logger.info("清理临时文件...");
@@ -388,10 +375,10 @@ export class VerifierService {
       this.gopAnalyzer.cleanupAllGops();
 
       logger.info(`任务验证成功完成: ${task.task_id}`);
-      return proof;
+      return true;
     } catch (error) {
       logger.error(`验证任务 ${task.task_id} 失败: ${error}`);
-      return null;
+      return false;
     }
   }
 

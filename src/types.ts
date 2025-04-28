@@ -35,6 +35,8 @@ export interface TaskData {
 
   keyframe_timestamps?: string[];
   selected_gops?: string[];
+
+  frame_count?: number;
 }
 
 // 视频规格
